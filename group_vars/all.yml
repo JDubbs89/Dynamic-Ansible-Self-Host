@@ -1,0 +1,28 @@
+# Core configuration - edit these values
+base_domain: "example.com"                    # Your domain name
+letsencrypt_email: "you@example.com"           # Email for Let's Encrypt cert notifications
+timezone: "America/New_York"                   # Your timezone (see: timedatectl list-timezones)
+
+# Service domains (auto-derived from base_domain)
+matrix_domain: "matrix.{{ base_domain }}"
+element_domain: "element.{{ base_domain }}"
+pelican_panel_domain: "panel.{{ base_domain }}"
+pelican_wings_domain: "wings.{{ base_domain }}"
+
+# Matrix configuration
+matrix_admin_email: "{{ letsencrypt_email }}"
+matrix_federation_enabled: false               # No federation - keeps it private
+matrix_require_vpn: true                       # Services only accessible via Tailscale
+
+# Pelican configuration
+pelican_panel_version: "v1.0.0-beta31"
+pelican_wings_version: "v1.0.0-beta22"
+pelican_admin_email: "{{ letsencrypt_email }}"
+
+# Tailscale configuration
+tailscale_auth_key: ""                         # Leave empty - will use interactive auth
+                                               # Or get an auth key from https://login.tailscale.com/admin/settings/keys
+
+# System configuration
+docker_users:
+  - "{{ ansible_user }}"

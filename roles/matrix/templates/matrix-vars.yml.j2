@@ -1,0 +1,48 @@
+# Base configuration
+matrix_domain: {{ matrix_domain }}
+matrix_homeserver_implementation: synapse
+
+# Admin contact
+devture_traefik_config_certificatesResolvers_acme_email: {{ matrix_admin_email }}
+
+# Disable federation (private homeserver)
+matrix_synapse_federation_enabled: {{ matrix_federation_enabled | lower }}
+
+# Element Web configuration
+matrix_client_element_enabled: true
+matrix_client_element_default_hs_url: "https://{{ matrix_domain }}"
+
+# Use external Traefik (the one we deployed earlier)
+matrix_playbook_reverse_proxy_type: other-traefik-container
+devture_traefik_container_network: traefik
+
+# Traefik labels for Matrix
+matrix_synapse_container_labels_traefik_enabled: true
+matrix_synapse_container_labels_traefik_docker_network: traefik
+matrix_synapse_container_labels_traefik_entrypoints: web-secure
+matrix_synapse_container_labels_traefik_tls_certResolver: letsencrypt
+
+# Element Traefik labels
+matrix_client_element_container_labels_traefik_enabled: true
+matrix_client_element_container_labels_traefik_docker_network: traefik
+matrix_client_element_container_labels_traefik_entrypoints: web-secure
+matrix_client_element_container_labels_traefik_tls_certResolver: letsencrypt
+matrix_client_element_hostname: {{ element_domain }}
+
+# Coturn for voice/video (VPN-only, no public TURN needed)
+matrix_coturn_enabled: true
+matrix_coturn_turn_external_ip_address: "{{ ansible_host }}"
+
+# Disable public federation port (not needed without federation)
+matrix_federation_public_port: 8448
+matrix_playbook_public_matrix_federation_api_traefik_entrypoint_enabled: false
+
+# PostgreSQL (recommended over SQLite for Synapse)
+matrix_postgres_enabled: true
+
+# Disable unnecessary services for private setup
+matrix_ma1sd_enabled: false
+matrix_dimension_enabled: false
+
+# Security: Use strong passwords (will be auto-generated)
+matrix_postgres_connection_password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"

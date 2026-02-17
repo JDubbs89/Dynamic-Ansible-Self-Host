@@ -1,0 +1,47 @@
+---
+- name: Create Traefik directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /opt/homelab/traefik
+    - /opt/homelab/traefik/config
+    - /opt/homelab/traefik/letsencrypt
+
+- name: Create Traefik Docker network
+  docker_network:
+    name: traefik
+    state: present
+
+- name: Deploy Traefik static configuration
+  template:
+    src: traefik.yml.j2
+    dest: /opt/homelab/traefik/config/traefik.yml
+    mode: '0644'
+  notify: restart traefik
+
+- name: Deploy Traefik dynamic configuration
+  template:
+    src: dynamic.yml.j2
+    dest: /opt/homelab/traefik/config/dynamic.yml
+    mode: '0644'
+  notify: restart traefik
+
+- name: Deploy Traefik docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/homelab/traefik/docker-compose.yml
+    mode: '0644'
+
+- name: Start Traefik
+  community.docker.docker_compose_v2:
+    project_src: /opt/homelab/traefik
+    state: present
+  register: traefik_output
+
+- name: Wait for Traefik to be ready
+  wait_for:
+    port: 80
+    delay: 5
+    timeout: 30

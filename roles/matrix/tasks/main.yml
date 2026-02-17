@@ -1,0 +1,51 @@
+---
+- name: Clone matrix-docker-ansible-deploy repository
+  git:
+    repo: https://github.com/spantaleev/matrix-docker-ansible-deploy.git
+    dest: /opt/homelab/matrix-docker-ansible-deploy
+    version: master
+    update: yes
+
+- name: Create Matrix inventory directory
+  file:
+    path: /opt/homelab/matrix-docker-ansible-deploy/inventory/host_vars/{{ matrix_domain }}
+    state: directory
+    mode: '0755'
+
+- name: Deploy Matrix vars configuration
+  template:
+    src: matrix-vars.yml.j2
+    dest: /opt/homelab/matrix-docker-ansible-deploy/inventory/host_vars/{{ matrix_domain }}/vars.yml
+    mode: '0644'
+
+- name: Deploy Matrix inventory hosts file
+  template:
+    src: matrix-hosts.j2
+    dest: /opt/homelab/matrix-docker-ansible-deploy/inventory/hosts
+    mode: '0644'
+
+- name: Run Matrix setup playbook
+  command: ansible-playbook -i inventory/hosts setup.yml --tags=setup-all,start
+  args:
+    chdir: /opt/homelab/matrix-docker-ansible-deploy
+  environment:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+  register: matrix_setup
+  changed_when: "'changed=0' not in matrix_setup.stdout"
+
+- name: Display Matrix admin user creation instructions
+  debug:
+    msg:
+      - "=========================================="
+      - "Matrix Setup Complete"
+      - "=========================================="
+      - "To create your first admin user, SSH into the server and run:"
+      - ""
+      - "  ansible-playbook -i inventory/hosts setup.yml --tags=register-user --extra-vars='username=YOUR_USERNAME password=YOUR_PASSWORD admin=yes'"
+      - ""
+      - "Or use the just shortcuts if you have just installed:"
+      - "  cd /opt/homelab/matrix-docker-ansible-deploy"
+      - "  just register-user YOUR_USERNAME YOUR_PASSWORD yes"
+      - ""
+      - "Then access Element at: https://{{ element_domain }}"
+      - "=========================================="

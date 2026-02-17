@@ -1,0 +1,54 @@
+---
+- name: Deploy self-hosted services stack
+  hosts: all
+  become: true
+  
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      tags: always
+
+  roles:
+    - role: base
+      tags: [base, always]
+    
+    - role: tailscale
+      tags: [tailscale, vpn]
+    
+    - role: traefik
+      tags: [traefik, proxy]
+    
+    - role: matrix
+      tags: [matrix, chat]
+    
+    - role: pelican
+      tags: [pelican, gameserver]
+
+  post_tasks:
+    - name: Display completion message
+      debug:
+        msg:
+          - "=========================================="
+          - "Deployment complete!"
+          - "=========================================="
+          - ""
+          - "Tailscale IP: Check with 'tailscale ip -4' on server"
+          - ""
+          - "Services (access via Tailscale):"
+          - "  - Matrix: https://{{ matrix_domain }}"
+          - "  - Element: https://{{ element_domain }}"
+          - "  - Pelican Panel: https://{{ pelican_panel_domain }}"
+          - "  - Wings API: https://{{ pelican_wings_domain }}"
+          - ""
+          - "Public access (no VPN required):"
+          - "  - SSH: {{ ansible_host }}:22"
+          - "  - Minecraft: {{ ansible_host }}:25565"
+          - ""
+          - "Next steps:"
+          - "  1. Join the Tailscale network from your device"
+          - "  2. Visit https://{{ pelican_panel_domain }}/installer"
+          - "  3. Visit https://{{ element_domain }} to access Matrix"
+          - "=========================================="
+      tags: always

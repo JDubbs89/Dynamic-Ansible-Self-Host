@@ -1,0 +1,66 @@
+---
+- name: Add Tailscale GPG key
+  apt_key:
+    url: https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg
+    keyring: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    state: present
+
+- name: Add Tailscale repository
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu noble main"
+    state: present
+    filename: tailscale
+
+- name: Install Tailscale
+  apt:
+    name: tailscale
+    state: present
+    update_cache: yes
+
+- name: Check if Tailscale is already connected
+  command: tailscale status
+  register: tailscale_status
+  failed_when: false
+  changed_when: false
+
+- name: Start Tailscale (interactive auth if not connected)
+  command: tailscale up {{ '--authkey=' + tailscale_auth_key if tailscale_auth_key else '' }}
+  when: tailscale_status.rc != 0
+  register: tailscale_up
+  
+- name: Display Tailscale authentication instructions
+  debug:
+    msg:
+      - "=========================================="
+      - "Tailscale Setup Required"
+      - "=========================================="
+      - "If this is the first run, authenticate Tailscale by:"
+      - "  1. SSH into your server"
+      - "  2. Run: sudo tailscale up"
+      - "  3. Visit the displayed URL to authenticate"
+      - ""
+      - "Or get an auth key from https://login.tailscale.com/admin/settings/keys"
+      - "and add it to group_vars/all.yml as 'tailscale_auth_key'"
+  when: tailscale_status.rc != 0 and not tailscale_auth_key
+
+- name: Get Tailscale IP
+  command: tailscale ip -4
+  register: tailscale_ip
+  changed_when: false
+  failed_when: false
+
+- name: Set Tailscale IP as fact
+  set_fact:
+    server_tailscale_ip: "{{ tailscale_ip.stdout | trim }}"
+  when: tailscale_ip.rc == 0
+
+- name: Display Tailscale IP
+  debug:
+    msg: "Server Tailscale IP: {{ server_tailscale_ip }}"
+  when: tailscale_ip.rc == 0
+
+- name: Enable Tailscale service
+  systemd:
+    name: tailscaled
+    enabled: yes
+    state: started

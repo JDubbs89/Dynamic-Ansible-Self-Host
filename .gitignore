@@ -1,0 +1,25 @@
+# Ansible
+*.retry
+.ansible/
+
+# Sensitive data
+group_vars/vault.yml
+*vault*.yml
+
+# Local overrides
+inventory/hosts.yml.local
+group_vars/all.yml.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

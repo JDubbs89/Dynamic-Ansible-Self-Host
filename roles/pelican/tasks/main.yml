@@ -1,0 +1,106 @@
+---
+- name: Create Pelican directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /opt/homelab/pelican
+    - /opt/homelab/pelican/panel/data
+    - /opt/homelab/pelican/panel/logs
+    - /etc/pelican
+
+- name: Clone Pelican Panel repository
+  git:
+    repo: https://github.com/pelican-dev/panel.git
+    dest: /tmp/pelican-panel
+    version: "{{ pelican_panel_version }}"
+    force: yes
+
+- name: Clone Pelican Wings repository
+  git:
+    repo: https://github.com/pelican-dev/wings.git
+    dest: /tmp/pelican-wings
+    version: "{{ pelican_wings_version }}"
+    force: yes
+
+- name: Build Pelican Panel Docker image
+  community.docker.docker_image:
+    name: pelican-dev/panel
+    tag: latest
+    source: build
+    build:
+      path: /tmp/pelican-panel
+      dockerfile: Dockerfile.dev
+    state: present
+    force_source: yes
+
+- name: Build Pelican Wings Docker image
+  community.docker.docker_image:
+    name: pelican-dev/wings
+    tag: latest
+    source: build
+    build:
+      path: /tmp/pelican-wings
+    state: present
+    force_source: yes
+
+- name: Deploy Caddyfile for Panel
+  copy:
+    content: |
+      {
+        admin off
+        email {{ pelican_admin_email }}
+      }
+      
+      :80 {
+        root * /var/www/html/public
+        encode gzip
+        
+        php_fastcgi 127.0.0.1:9000
+        file_server
+      }
+    dest: /opt/homelab/pelican/Caddyfile
+    mode: '0644'
+
+- name: Deploy Pelican docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/homelab/pelican/docker-compose.yml
+    mode: '0644'
+
+- name: Start Pelican services
+  community.docker.docker_compose_v2:
+    project_src: /opt/homelab/pelican
+    state: present
+
+- name: Wait for Panel to be ready
+  wait_for:
+    port: 80
+    host: 127.0.0.1
+    delay: 10
+    timeout: 60
+
+- name: Check if Wings config exists
+  stat:
+    path: /etc/pelican/config.yml
+  register: wings_config
+
+- name: Display Wings configuration instructions
+  debug:
+    msg:
+      - "=========================================="
+      - "Pelican Panel Setup"
+      - "=========================================="
+      - "Panel is running! Next steps:"
+      - ""
+      - "1. Access the installer at: https://{{ pelican_panel_domain }}/installer"
+      - "2. Complete the setup wizard"
+      - "3. Create a Node in the Panel UI"
+      - "4. Copy the generated config.yml to /etc/pelican/config.yml"
+      - "5. Set ssl.enabled: false in the config.yml"
+      - "6. Restart: docker compose -f /opt/homelab/pelican/docker-compose.yml restart wings"
+      - ""
+      - "Wings will show errors until config.yml is created - this is expected."
+      - "=========================================="
+  when: not wings_config.stat.exists
