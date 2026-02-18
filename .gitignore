@@ -1,6 +1,7 @@
 # Ansible
 *.retry
 .ansible/
+.vendor/
 
 # Sensitive data
 group_vars/vault.yml
