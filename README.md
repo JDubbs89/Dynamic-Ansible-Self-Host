@@ -4,6 +4,14 @@ A modular Ansible playbook for self-hosting multiple services on a single server
 
 > **Current stack:** Matrix (Synapse + Element) via [matrix-docker-ansible-deploy](https://github.com/spantaleev/matrix-docker-ansible-deploy), Pelican Panel + Wings for game server management, and Traefik for SSL termination and routing.
 
+## ⚠️ Security Notice
+
+**All sensitive information should be stored in a `.env` file, NOT in the code!**
+
+- Copy `.env.example` to `.env` and add your actual values
+- Never commit `.env` to git (already in `.gitignore`)
+- See [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) for complete setup guide
+
 ---
 
 ## Architecture Overview

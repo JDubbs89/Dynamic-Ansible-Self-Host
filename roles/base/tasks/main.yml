@@ -17,25 +17,36 @@
       - netfilter-persistent
     state: present
 
-- name: Add Docker GPG key
-  apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    state: present
+- name: Remove any existing Docker repository files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/docker.list
+    - /etc/apt/sources.list.d/docker.list.save
+    - /etc/apt/sources.list.d/archive_uri-https_download_docker_com_linux_ubuntu-noble.list
 
-- name: Add Docker repository
-  apt_repository:
-    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-    state: present
+- name: Check if Docker is already installed
+  command: docker --version
+  register: docker_installed
+  failed_when: false
+  changed_when: false
 
-- name: Install Docker
-  apt:
-    name:
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io
-      - docker-compose-plugin
-    state: present
-    update_cache: yes
+- name: Download Docker installation script
+  get_url:
+    url: https://get.docker.com
+    dest: /tmp/get-docker.sh
+    mode: '0755'
+  when: docker_installed.rc != 0
+
+- name: Install Docker using official script
+  command: sh /tmp/get-docker.sh
+  when: docker_installed.rc != 0
+
+- name: Remove Docker installation script
+  file:
+    path: /tmp/get-docker.sh
+    state: absent
 
 - name: Add users to docker group
   user:

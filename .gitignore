@@ -6,6 +6,12 @@
 group_vars/vault.yml
 *vault*.yml
 
+# Environment variables (never commit .env files)
+.env
+.env.local
+.env.*.local
+.env.production.local
+
 # Local overrides
 inventory/hosts.yml.local
 group_vars/all.yml.local

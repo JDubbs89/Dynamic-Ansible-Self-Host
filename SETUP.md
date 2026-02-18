@@ -63,6 +63,89 @@ ansible-galaxy collection install -r requirements.yml
 
 ## Step 2: Configure Your Variables
 
+### Using Environment Variables (Recommended for Security)
+
+**IMPORTANT**: All sensitive information should be stored in environment variables, NOT in the configuration files that will be committed to git.
+
+1. **Copy the example environment file**:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit `.env` with your actual values**:
+   ```bash
+   # Core Infrastructure
+   ANSIBLE_HOST=your.server.ip.address
+   BASE_DOMAIN=yourdomain.com
+   LETSENCRYPT_EMAIL=your@example.com
+   TIMEZONE=America/New_York
+   
+   # Tailscale (get from https://login.tailscale.com/admin/settings/keys)
+   TAILSCALE_AUTH_KEY=tskey-YOUR_KEY_HERE
+   
+   # Matrix-specific
+   MATRIX_HOMESERVER_GENERIC_SECRET_KEY=<generate-a-random-secret>
+   POSTGRES_CONNECTION_PASSWORD=<generate-a-strong-password>
+   
+   # SSH/Ansible
+   ANSIBLE_USER=ubuntu
+   ANSIBLE_SSH_PRIVATE_KEY_FILE=/root/.ssh/your-key.key
+   ANSIBLE_PYTHON_INTERPRETER=/usr/bin/python3
+   ```
+
+3. **Load environment variables before running Ansible**:
+   ```bash
+   # On Linux/macOS
+   source .env
+   
+   # On Windows PowerShell
+   Get-Content .env | ForEach-Object {
+       $name, $value = $_.Split("=")
+       [Environment]::SetEnvironmentVariable($name, $value)
+   }
+   ```
+
+4. **Verify .env is in .gitignore**:
+   ```bash
+   # Check if .env is already listed
+   grep '\.env' .gitignore
+   
+   # You should see:
+   # .env
+   # .env.local
+   # .env.*.local
+   # .env.production.local
+   ```
+
+### Alternative: Direct Configuration (Less Secure)
+
+If you prefer not to use environment variables, edit the files directly:
+
+Edit `group_vars/all.yml`:
+
+```yaml
+base_domain: "yourdomain.com"              # Your actual domain
+letsencrypt_email: "you@example.com"       # Your email
+timezone: "America/New_York"               # Your timezone
+
+# Optional: Tailscale auth key for non-interactive setup
+# Get from: https://login.tailscale.com/admin/settings/keys
+tailscale_auth_key: ""
+```
+
+Edit `inventory/hosts.yml`:
+
+```yaml
+all:
+  hosts:
+    homelab:
+      ansible_host: YOUR_SERVER_PUBLIC_IP
+      ansible_user: ubuntu
+      ansible_ssh_private_key_file: ~/.ssh/id_rsa  # Path to your SSH key
+```
+
+### Manual Configuration (Old Method)
+
 Edit `group_vars/all.yml`:
 
 ```yaml

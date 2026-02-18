@@ -40,8 +40,13 @@
     state: present
   register: traefik_output
 
+- name: Get Tailscale IP
+  command: tailscale ip -4
+  register: tailscale_ip
+  changed_when: false
+
 - name: Wait for Traefik to be ready
   wait_for:
+    host: "{{ tailscale_ip.stdout }}"
     port: 80
-    delay: 5
-    timeout: 30
+    timeout: 60

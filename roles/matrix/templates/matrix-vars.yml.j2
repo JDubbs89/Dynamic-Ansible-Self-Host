@@ -3,7 +3,8 @@ matrix_domain: {{ matrix_domain }}
 matrix_homeserver_implementation: synapse
 
 # Admin contact
-devture_traefik_config_certificatesResolvers_acme_email: {{ matrix_admin_email }}
+traefik_config_certificatesResolvers_acme_email: {{ matrix_admin_email }}
+traefik_certs_dumper_enabled: false
 
 # Disable federation (private homeserver)
 matrix_synapse_federation_enabled: {{ matrix_federation_enabled | lower }}
@@ -12,9 +13,52 @@ matrix_synapse_federation_enabled: {{ matrix_federation_enabled | lower }}
 matrix_client_element_enabled: true
 matrix_client_element_default_hs_url: "https://{{ matrix_domain }}"
 
+# Element customization
+matrix_client_element_branding_welcome_background_url: ""  # Add custom background URL or leave empty
+matrix_client_element_default_theme: "dark"
+matrix_client_element_custom_themes_enabled: true
+
+# URL Previews
+matrix_synapse_url_preview_enabled: true
+matrix_synapse_url_preview_ip_range_blacklist: []
+
+# File upload limits
+matrix_synapse_max_upload_size_mb: 500
+
+# Synapse Admin - Web UI for user/room management
+matrix_synapse_admin_enabled: true
+matrix_synapse_admin_container_labels_traefik_enabled: true
+matrix_synapse_admin_container_labels_traefik_docker_network: traefik
+matrix_synapse_admin_container_labels_traefik_entrypoints: web-secure
+matrix_synapse_admin_container_labels_traefik_tls_certResolver: letsencrypt
+matrix_synapse_admin_hostname: "admin.{{ base_domain }}"
+
+# Element Call - Full conferencing
+matrix_client_element_call_enabled: true
+matrix_client_element_call_container_labels_traefik_enabled: true
+matrix_client_element_call_container_labels_traefik_docker_network: traefik
+matrix_client_element_call_container_labels_traefik_entrypoints: web-secure
+matrix_client_element_call_container_labels_traefik_tls_certResolver: letsencrypt
+matrix_client_element_call_hostname: "call.{{ base_domain }}"
+
+# Discord Bridge
+matrix_mautrix_discord_enabled: true
+
+# Mjolnir Bot - Moderation/Admin bot
+matrix_bot_mjolnir_enabled: false
+matrix_bot_mjolnir_access_token: "{{ lookup('env', 'MATRIX_BOT_MJOLNIR_ACCESS_TOKEN') }}"  # From environment variable
+
+# Honoroit Bot - Help desk / support ticket bot
+matrix_bot_honoroit_enabled: false
+matrix_bot_honoroit_password: "{{ lookup('env', 'MATRIX_BOT_HONOROIT_PASSWORD') }}"
+matrix_bot_honoroit_roomid: "{{ lookup('env', 'MATRIX_BOT_HONOROIT_ROOMID') }}"
+
+# Postmoogle Bot - Email bridge (disabled due to MDAD validation bug)
+# matrix_bot_postmoogle_enabled: true
+
 # Use external Traefik (the one we deployed earlier)
 matrix_playbook_reverse_proxy_type: other-traefik-container
-devture_traefik_container_network: traefik
+traefik_container_network: traefik
 
 # Traefik labels for Matrix
 matrix_synapse_container_labels_traefik_enabled: true
@@ -30,19 +74,41 @@ matrix_client_element_container_labels_traefik_tls_certResolver: letsencrypt
 matrix_client_element_hostname: {{ element_domain }}
 
 # Coturn for voice/video (VPN-only, no public TURN needed)
-matrix_coturn_enabled: true
-matrix_coturn_turn_external_ip_address: "{{ ansible_host }}"
+coturn_enabled: true
+coturn_turn_external_ip_address: "{{ ansible_host }}"
 
 # Disable public federation port (not needed without federation)
 matrix_federation_public_port: 8448
 matrix_playbook_public_matrix_federation_api_traefik_entrypoint_enabled: false
 
 # PostgreSQL (recommended over SQLite for Synapse)
-matrix_postgres_enabled: true
+postgres_enabled: true
 
-# Disable unnecessary services for private setup
-matrix_ma1sd_enabled: false
-matrix_dimension_enabled: false
+# PostgreSQL optimization for performance
+postgres_process_extra_arguments:
+  - "-c shared_buffers=256MB"
+  - "-c effective_cache_size=512MB"
+  - "-c maintenance_work_mem=64MB"
+  - "-c checkpoint_completion_target=0.9"
+  - "-c wal_buffers=16MB"
+  - "-c default_statistics_target=100"
+  - "-c random_page_cost=1.1"
+  - "-c effective_io_concurrency=200"
 
-# Security: Use strong passwords (will be auto-generated)
-matrix_postgres_connection_password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+# Synapse performance tuning
+matrix_synapse_caches_global_factor: 1.0
+matrix_synapse_cache_autotuning_enabled: true
+
+# Message retention (optional - uncomment to enable)
+# matrix_synapse_retention_enabled: true
+# matrix_synapse_retention_default_min_lifetime: 1d
+# matrix_synapse_retention_default_max_lifetime: 1y
+
+# Registration settings (disabled by default - create users via CLI)
+matrix_synapse_enable_registration: false
+matrix_synapse_enable_registration_captcha: false
+
+matrix_homeserver_generic_secret_key: "{{ lookup('env', 'MATRIX_HOMESERVER_GENERIC_SECRET_KEY') }}"
+
+# Security: Use strong passwords (will be auto-generated if not in environment)
+postgres_connection_password: "{% set pw = lookup('env', 'POSTGRES_CONNECTION_PASSWORD') %}{% if pw %}{{ pw }}{% else %}{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}{% endif %}"

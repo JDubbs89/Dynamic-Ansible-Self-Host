@@ -9,7 +9,6 @@ services:
     tty: true
     volumes:
       - ./panel/data:/pelican-data
-      - ./panel/logs:/var/www/html/storage/logs
       - ./Caddyfile:/etc/caddy/Caddyfile
     environment:
       TZ: {{ timezone }}

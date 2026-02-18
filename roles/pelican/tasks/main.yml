@@ -7,7 +7,6 @@
   loop:
     - /opt/homelab/pelican
     - /opt/homelab/pelican/panel/data
-    - /opt/homelab/pelican/panel/logs
     - /etc/pelican
 
 - name: Clone Pelican Panel repository
@@ -17,6 +16,12 @@
     version: "{{ pelican_panel_version }}"
     force: yes
 
+- name: Remove dynamic platform directive from Panel Dockerfile
+  replace:
+    path: /tmp/pelican-panel/Dockerfile.dev
+    regexp: '--platform=\$TARGETOS/\$TARGETARCH'
+    replace: ''
+
 - name: Clone Pelican Wings repository
   git:
     repo: https://github.com/pelican-dev/wings.git
@@ -24,16 +29,21 @@
     version: "{{ pelican_wings_version }}"
     force: yes
 
-- name: Build Pelican Panel Docker image
-  community.docker.docker_image:
-    name: pelican-dev/panel
-    tag: latest
-    source: build
-    build:
-      path: /tmp/pelican-panel
-      dockerfile: Dockerfile.dev
-    state: present
-    force_source: yes
+- name: Enable Docker BuildKit for this session
+  set_fact:
+    docker_buildkit_env:
+      DOCKER_BUILDKIT: "1"
+
+- name: Build Pelican Panel Docker image (BuildKit)
+  command: >
+    docker build
+    -f Dockerfile.dev
+    -t pelican-dev/panel:latest
+    .
+  args:
+    chdir: /tmp/pelican-panel
+  environment:
+    DOCKER_BUILDKIT: "1"
 
 - name: Build Pelican Wings Docker image
   community.docker.docker_image:
@@ -74,10 +84,15 @@
     project_src: /opt/homelab/pelican
     state: present
 
+- name: Get Tailscale IP
+  command: tailscale ip -4
+  register: tailscale_ip
+  changed_when: false
+
 - name: Wait for Panel to be ready
   wait_for:
     port: 80
-    host: 127.0.0.1
+    host: "{{ tailscale_ip.stdout }}"
     delay: 10
     timeout: 60
 

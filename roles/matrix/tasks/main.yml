@@ -1,4 +1,10 @@
 ---
+- name: Install Ansible on remote server for MDAD
+  apt:
+    name: ansible
+    state: present
+    update_cache: yes
+
 - name: Clone matrix-docker-ansible-deploy repository
   git:
     repo: https://github.com/spantaleev/matrix-docker-ansible-deploy.git
@@ -23,6 +29,13 @@
     src: matrix-hosts.j2
     dest: /opt/homelab/matrix-docker-ansible-deploy/inventory/hosts
     mode: '0644'
+
+- name: Install MDAD Ansible Galaxy dependencies
+  command: make roles
+  args:
+    chdir: /opt/homelab/matrix-docker-ansible-deploy
+  register: galaxy_install
+  changed_when: "'Installing' in galaxy_install.stdout"
 
 - name: Run Matrix setup playbook
   command: ansible-playbook -i inventory/hosts setup.yml --tags=setup-all,start
