@@ -17,11 +17,15 @@ services:
       APP_URL: "https://{{ pelican_panel_domain }}"
       ADMIN_EMAIL: {{ pelican_admin_email }}
     labels:
+      # Note: Routing is handled by central Traefik config (dynamic.yml)
+      # This label config is kept for backward compatibility if using host-based routing
       - "traefik.enable=true"
+      # Primary: VPN-only path-based routing (via dynamic.yml)
+      # - fragnocklegacy.com/pelican-panel
+      # Fallback: Host-based routing (if dynamic.yml not in use)
       - "traefik.http.routers.pelican-panel.rule=Host(`{{ pelican_panel_domain }}`)"
       - "traefik.http.routers.pelican-panel.entrypoints=web-secure"
       - "traefik.http.routers.pelican-panel.tls=true"
-      - "traefik.http.routers.pelican-panel.tls.certresolver=letsencrypt"
       - "traefik.http.services.pelican-panel.loadbalancer.server.port=80"
     networks:
       - traefik
@@ -51,11 +55,15 @@ services:
       - "/tmp/pelican/:/tmp/pelican/"
       - "/etc/ssl/certs:/etc/ssl/certs:ro"
     labels:
+      # Note: Routing is handled by central Traefik config (dynamic.yml)
+      # This label config is kept for backward compatibility if using host-based routing
       - "traefik.enable=true"
+      # Primary: VPN-only path-based routing (via dynamic.yml)
+      # - fragnocklegacy.com/pelican-wings
+      # Fallback: Host-based routing (if dynamic.yml not in use)
       - "traefik.http.routers.pelican-wings.rule=Host(`{{ pelican_wings_domain }}`)"
       - "traefik.http.routers.pelican-wings.entrypoints=web-secure"
       - "traefik.http.routers.pelican-wings.tls=true"
-      - "traefik.http.routers.pelican-wings.tls.certresolver=letsencrypt"
       - "traefik.http.services.pelican-wings.loadbalancer.server.port=443"
       - "traefik.http.services.pelican-wings.loadbalancer.server.scheme=http"
     networks:

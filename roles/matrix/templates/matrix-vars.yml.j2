@@ -2,89 +2,15 @@
 matrix_domain: {{ matrix_domain }}
 matrix_homeserver_implementation: synapse
 
-# Admin contact
-traefik_config_certificatesResolvers_acme_email: {{ matrix_admin_email }}
+# CRITICAL: No reverse proxy deployment by MDAD
+# Traefik routing configured separately in site.yml post_tasks
+matrix_playbook_reverse_proxy_type: none
 traefik_certs_dumper_enabled: false
 
-# Disable federation (private homeserver)
-matrix_synapse_federation_enabled: {{ matrix_federation_enabled | lower }}
-
-# Element Web configuration
-matrix_client_element_enabled: true
-matrix_client_element_default_hs_url: "https://{{ matrix_domain }}"
-
-# Element customization
-matrix_client_element_branding_welcome_background_url: ""  # Add custom background URL or leave empty
-matrix_client_element_default_theme: "dark"
-matrix_client_element_custom_themes_enabled: true
-
-# URL Previews
-matrix_synapse_url_preview_enabled: true
-matrix_synapse_url_preview_ip_range_blacklist: []
-
-# File upload limits
-matrix_synapse_max_upload_size_mb: 500
-
-# Synapse Admin - Web UI for user/room management
-matrix_synapse_admin_enabled: true
-matrix_synapse_admin_container_labels_traefik_enabled: true
-matrix_synapse_admin_container_labels_traefik_docker_network: traefik
-matrix_synapse_admin_container_labels_traefik_entrypoints: web-secure
-matrix_synapse_admin_container_labels_traefik_tls_certResolver: letsencrypt
-matrix_synapse_admin_hostname: "admin.{{ base_domain }}"
-
-# Element Call - Full conferencing
-matrix_client_element_call_enabled: true
-matrix_client_element_call_container_labels_traefik_enabled: true
-matrix_client_element_call_container_labels_traefik_docker_network: traefik
-matrix_client_element_call_container_labels_traefik_entrypoints: web-secure
-matrix_client_element_call_container_labels_traefik_tls_certResolver: letsencrypt
-matrix_client_element_call_hostname: "call.{{ base_domain }}"
-
-# Discord Bridge
-matrix_mautrix_discord_enabled: true
-
-# Mjolnir Bot - Moderation/Admin bot
-matrix_bot_mjolnir_enabled: false
-matrix_bot_mjolnir_access_token: "{{ lookup('env', 'MATRIX_BOT_MJOLNIR_ACCESS_TOKEN') }}"  # From environment variable
-
-# Honoroit Bot - Help desk / support ticket bot
-matrix_bot_honoroit_enabled: false
-matrix_bot_honoroit_password: "{{ lookup('env', 'MATRIX_BOT_HONOROIT_PASSWORD') }}"
-matrix_bot_honoroit_roomid: "{{ lookup('env', 'MATRIX_BOT_HONOROIT_ROOMID') }}"
-
-# Postmoogle Bot - Email bridge (disabled due to MDAD validation bug)
-# matrix_bot_postmoogle_enabled: true
-
-# Use external Traefik (the one we deployed earlier)
-matrix_playbook_reverse_proxy_type: other-traefik-container
-traefik_container_network: traefik
-
-# Traefik labels for Matrix
-matrix_synapse_container_labels_traefik_enabled: true
-matrix_synapse_container_labels_traefik_docker_network: traefik
-matrix_synapse_container_labels_traefik_entrypoints: web-secure
-matrix_synapse_container_labels_traefik_tls_certResolver: letsencrypt
-
-# Element Traefik labels
-matrix_client_element_container_labels_traefik_enabled: true
-matrix_client_element_container_labels_traefik_docker_network: traefik
-matrix_client_element_container_labels_traefik_entrypoints: web-secure
-matrix_client_element_container_labels_traefik_tls_certResolver: letsencrypt
-matrix_client_element_hostname: {{ element_domain }}
-
-# Coturn for voice/video (VPN-only, no public TURN needed)
-coturn_enabled: true
-coturn_turn_external_ip_address: "{{ ansible_host }}"
-
-# Disable public federation port (not needed without federation)
-matrix_federation_public_port: 8448
-matrix_playbook_public_matrix_federation_api_traefik_entrypoint_enabled: false
-
-# PostgreSQL (recommended over SQLite for Synapse)
+# Database
 postgres_enabled: true
+postgres_connection_password: "{% set pw = lookup('env', 'POSTGRES_CONNECTION_PASSWORD') %}{% if pw %}{{ pw }}{% else %}{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}{% endif %}"
 
-# PostgreSQL optimization for performance
 postgres_process_extra_arguments:
   - "-c shared_buffers=256MB"
   - "-c effective_cache_size=512MB"
@@ -95,20 +21,41 @@ postgres_process_extra_arguments:
   - "-c random_page_cost=1.1"
   - "-c effective_io_concurrency=200"
 
-# Synapse performance tuning
+# Federation (disabled for private homeserver)
+matrix_synapse_federation_enabled: {{ matrix_federation_enabled | lower }}
+
+# Synapse performance
 matrix_synapse_caches_global_factor: 1.0
 matrix_synapse_cache_autotuning_enabled: true
+matrix_synapse_retention_enabled: false
 
-# Message retention (optional - uncomment to enable)
-# matrix_synapse_retention_enabled: true
-# matrix_synapse_retention_default_min_lifetime: 1d
-# matrix_synapse_retention_default_max_lifetime: 1y
-
-# Registration settings (disabled by default - create users via CLI)
+# Synapse security & registration
 matrix_synapse_enable_registration: false
 matrix_synapse_enable_registration_captcha: false
-
 matrix_homeserver_generic_secret_key: "{{ lookup('env', 'MATRIX_HOMESERVER_GENERIC_SECRET_KEY') }}"
 
-# Security: Use strong passwords (will be auto-generated if not in environment)
-postgres_connection_password: "{% set pw = lookup('env', 'POSTGRES_CONNECTION_PASSWORD') %}{% if pw %}{{ pw }}{% else %}{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}{% endif %}"
+# Content & uploads
+matrix_synapse_max_upload_size_mb: 500
+matrix_synapse_url_preview_enabled: true
+matrix_synapse_url_preview_ip_range_blacklist: []
+
+# Element Web Client
+matrix_client_element_enabled: true
+matrix_client_element_default_hs_url: "https://{{ matrix_domain }}"
+matrix_client_element_default_theme: "dark"
+matrix_client_element_custom_themes_enabled: true
+
+# Element Call (Voice/Video)
+matrix_client_element_call_enabled: true
+matrix_client_element_call_hostname: "call.{{ base_domain }}"
+
+# Coturn (TURN/STUN for voice/video)
+coturn_enabled: true
+coturn_turn_external_ip_address: "{{ ansible_host }}"
+
+# Disabled components
+matrix_synapse_admin_enabled: false
+matrix_mautrix_discord_enabled: false
+matrix_bot_mjolnir_enabled: false
+matrix_bot_honoroit_enabled: false
+

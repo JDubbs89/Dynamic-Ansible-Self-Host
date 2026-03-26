@@ -1,5 +1,5 @@
 ---
-- name: Deploy self-hosted services stack
+- name: Deploy self-hosted services stack (single Traefik layer)
   hosts: all
   become: true
   
@@ -27,6 +27,26 @@
       tags: [pelican, gameserver]
 
   post_tasks:
+    - name: Configure Traefik routing for Matrix services
+      block:
+        - name: Generate Matrix Traefik routes
+          template:
+            src: roles/matrix/templates/traefik-matrix-routes.yml.j2
+            dest: /opt/homelab/traefik/config/matrix-routes.yml
+            mode: '0644'
+          register: matrix_routes
+        
+        - name: Append Matrix routes to dynamic config
+          shell: |
+            # Remove old matrix routes section if exists
+            sed -i '/# BEGIN MATRIX ROUTES/,/# END MATRIX ROUTES/d' /opt/homelab/traefik/config/dynamic.yml
+            # Append new matrix routes
+            cat /opt/homelab/traefik/config/matrix-routes.yml >> /opt/homelab/traefik/config/dynamic.yml
+          when: matrix_routes.changed
+          notify: restart traefik
+      tags: [matrix, traefik]
+      when: ansible_run_tags is defined and ('matrix' in ansible_run_tags or 'all' in ansible_run_tags)
+    
     - name: Display completion message
       debug:
         msg:
@@ -34,20 +54,21 @@
           - "Deployment complete!"
           - "=========================================="
           - ""
-          - "Tailscale IP: Check with 'tailscale ip -4' on server"
+          - "Architecture: Single Traefik layer (no nested proxies)"
           - ""
-          - "Services (access via Tailscale):"
-          - "  - Matrix: https://{{ matrix_domain }}"
-          - "  - Element: https://{{ element_domain }}"
-          - "  - Pelican Panel: https://{{ pelican_panel_domain }}"
-          - "  - Wings API: https://{{ pelican_wings_domain }}"
+          - "Services:"
+          - "  - Synapse (Matrix homeserver): http://{{ matrix_domain }}"
+          - "  - Element Web: http://{{ element_domain }}"
+          - "  - Element Call: http://call.{{ base_domain }}"
+          - "  - Pelican Panel: http://panel.{{ base_domain }}"
+          - "  - Wings API: http://wings.{{ base_domain }}"
           - ""
-          - "Public access (no VPN required):"
-          - "  - SSH: {{ ansible_host }}:22"
-          - "  - Minecraft: {{ ansible_host }}:25565"
+          - "Access via Tailscale: 100.94.255.52"
+          - "SSH: {{ ansible_host }}:22"
           - ""
-          - "Next steps:"
-          - "  1. Join the Tailscale network from your device"
+          - "Next: Create Matrix user via:"
+          - "  ssh ubuntu@{{ ansible_host }}"
+          - "  docker exec matrix-synapse register_new_matrix_user -u myuser -p mypass http://localhost:8008"
           - "  2. Visit https://{{ pelican_panel_domain }}/installer"
           - "  3. Visit https://{{ element_domain }} to access Matrix"
           - "=========================================="

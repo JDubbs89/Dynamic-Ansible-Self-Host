@@ -1,12 +1,162 @@
 http:
-  # Middleware for IP whitelisting (optional - restrict to Tailscale network)
+  routers:
+    # Unified entrypoint: fragnocklegacy.com routes by path
+    # All routers use tailscale-only middleware to restrict access to VPN
+    
+    # Matrix Synapse via VPN path (HTTP redirect)
+    matrix-vlan-http:
+      rule: "Host(`fragnocklegacy.com`) && PathPrefix(`/matrix`)"
+      entrypoints: web
+      service: matrix-synapse-client
+      middlewares:
+        - matrix-redirect-to-https
+
+    # Matrix Synapse via VPN path (HTTPS)
+    matrix-vlan-https:
+      rule: "Host(`fragnocklegacy.com`) && PathPrefix(`/matrix`)"
+      entrypoints: web-secure
+      service: matrix-synapse-client
+      middlewares:
+        - tailscale-only
+        - matrix-strip-prefix
+      tls: {}
+
+    # Element Web via VPN path (HTTP redirect)
+    element-vlan-http:
+      rule: "Host(`fragnocklegacy.com`) && PathPrefix(`/element`)"
+      entrypoints: web
+      service: element-web
+      middlewares:
+        - element-redirect-to-https
+
+    # Element Web via VPN path (HTTPS)
+    element-vlan-https:
+      rule: "Host(`fragnocklegacy.com`) && PathPrefix(`/element`)"
+      entrypoints: web-secure
+      service: element-web
+      middlewares:
+        - tailscale-only
+        - element-strip-prefix
+      tls: {}
+
+    # Element Call via VPN path (HTTP redirect)
+    element-call-vlan-http:
+      rule: "Host(`fragnocklegacy.com`) && PathPrefix(`/call`)"
+      entrypoints: web
+      service: element-call
+      middlewares:
+        - element-call-redirect-to-https
+
+    # Element Call via VPN path (HTTPS)
+    element-call-vlan-https:
+      rule: "Host(`fragnocklegacy.com`) && PathPrefix(`/call`)"
+      entrypoints: web-secure
+      service: element-call
+      middlewares:
+        - tailscale-only
+        - call-strip-prefix
+      tls: {}
+
+    # Pelican Panel via VPN path
+    pelican-panel-vlan:
+      rule: "Host(`fragnocklegacy.com`) && PathPrefix(`/pelican-panel`)"
+      entrypoints: web-secure
+      service: pelican-panel
+      middlewares:
+        - tailscale-only
+        - pelican-panel-strip-prefix
+      tls: {}
+
+    # Pelican Wings API via VPN path
+    pelican-wings-vlan:
+      rule: "Host(`fragnocklegacy.com`) && PathPrefix(`/pelican-wings`)"
+      entrypoints: web-secure
+      service: pelican-wings
+      middlewares:
+        - tailscale-only
+        - pelican-wings-strip-prefix
+      tls: {}
+
+  services:
+    matrix-synapse-client:
+      loadBalancer:
+        servers:
+          - url: "http://matrix-synapse:8008"
+
+    element-web:
+      loadBalancer:
+        servers:
+          - url: "http://matrix-client-element:80"
+
+    element-call:
+      loadBalancer:
+        servers:
+          - url: "http://matrix-client-element-call:7780"
+
+    pelican-panel:
+      loadBalancer:
+        servers:
+          - url: "http://pelican_panel:80"
+
+    pelican-wings:
+      loadBalancer:
+        servers:
+          - url: "https://pelican_wings:443"
+
+  # Middleware for IP whitelisting (restrict to Tailscale network)
   middlewares:
     tailscale-only:
       ipWhiteList:
         sourceRange:
           - "100.64.0.0/10"  # Tailscale CGNAT range
+          - "127.0.0.1/32"   # allow local server testing (localhost)
+
+    # HTTP to HTTPS redirect middleware
+    matrix-redirect-to-https:
+      redirectscheme:
+        scheme: https
+        permanent: true
+
+    element-redirect-to-https:
+      redirectscheme:
+        scheme: https
+        permanent: true
+
+    element-call-redirect-to-https:
+      redirectscheme:
+        scheme: https
+        permanent: true
+
+    # Path stripping middleware (remove path prefix before proxying)
+    matrix-strip-prefix:
+      stripPrefix:
+        prefixes:
+          - "/matrix"
+
+    element-strip-prefix:
+      stripPrefix:
+        prefixes:
+          - "/element"
+
+    call-strip-prefix:
+      stripPrefix:
+        prefixes:
+          - "/call"
+
+    pelican-panel-strip-prefix:
+      stripPrefix:
+        prefixes:
+          - "/pelican-panel"
+
+    pelican-wings-strip-prefix:
+      stripPrefix:
+        prefixes:
+          - "/pelican-wings"
 
 tls:
+  certificates:
+    - certFile: /etc/traefik/cert.crt
+      keyFile: /etc/traefik/cert.key
   options:
     default:
       minVersion: VersionTLS12

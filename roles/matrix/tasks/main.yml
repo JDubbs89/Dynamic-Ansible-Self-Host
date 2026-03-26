@@ -18,7 +18,7 @@
     state: directory
     mode: '0755'
 
-- name: Deploy Matrix vars configuration
+- name: Deploy Matrix vars configuration (no nested Traefik)
   template:
     src: matrix-vars.yml.j2
     dest: /opt/homelab/matrix-docker-ansible-deploy/inventory/host_vars/{{ matrix_domain }}/vars.yml
@@ -37,7 +37,7 @@
   register: galaxy_install
   changed_when: "'Installing' in galaxy_install.stdout"
 
-- name: Run Matrix setup playbook
+- name: Run Matrix setup playbook (use central Traefik only)
   command: ansible-playbook -i inventory/hosts setup.yml --tags=setup-all,start
   args:
     chdir: /opt/homelab/matrix-docker-ansible-deploy

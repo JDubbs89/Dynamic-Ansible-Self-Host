@@ -1,0 +1,24 @@
+---
+# This role configures Traefik routing for Matrix services
+# It runs AFTER the matrix role has deployed services without reverse proxy
+
+- name: Create Traefik configuration directory for Matrix routes
+  file:
+    path: /opt/homelab/traefik/config/matrix
+    state: directory
+    mode: '0755'
+
+- name: Deploy Matrix routing configuration
+  template:
+    src: matrix-routes.yml.j2
+    dest: /opt/homelab/traefik/config/matrix/routes.yml
+    mode: '0644'
+  notify: reload traefik
+
+- name: Ensure traefik dynamic config loads matrix routes
+  lineinfile:
+    path: /opt/homelab/traefik/config/dynamic.yml
+    line: "  - /etc/traefik/matrix/routes.yml"
+    insertafter: "^file:"
+    state: present
+  notify: reload traefik

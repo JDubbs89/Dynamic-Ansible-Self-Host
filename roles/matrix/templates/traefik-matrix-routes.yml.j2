@@ -1,0 +1,35 @@
+# IMPORTANT: Matrix services are now routed via path-based rules in the central dynamic.yml
+# This file is kept for reference and backward compatibility.
+# To use Matrix services, access them through fragnocklegacy.com:
+#   - Matrix API: fragnocklegacy.com/matrix
+#   - Element Web: fragnocklegacy.com/element
+#   - Element Call: fragnocklegacy.com/call
+#
+# See TRAEFIK-TAILSCALE-ANALYSIS.md for routing architecture details.
+#
+# Original Host-based routes (commented out - replaced by dynamic.yml path-based routing):
+#
+# http:
+#   routers:
+#     # Matrix Synapse - Client API (HTTP redirect)
+#     matrix-synapse-public-client-http:
+#       rule: "Host(`{{ matrix_domain }}`)"
+#       entrypoints: web
+#       service: matrix-synapse-client
+#       middlewares:
+#         - matrix-redirect-to-https
+#
+#     # Matrix Synapse - Client API (HTTPS)
+#     matrix-synapse-public-client-https:
+#       rule: "Host(`{{ matrix_domain }}`)"
+#       entrypoints: web-secure
+#       service: matrix-synapse-client
+#       tls: {}
+#
+#     # [Additional routes removed - see dynamic.yml for active routing]
+#
+# EMPTY PLACEHOLDER - routes defined in roles/traefik/templates/dynamic.yml.j2
+http:
+  routers: {}
+  services: {}
+  middlewares: {}

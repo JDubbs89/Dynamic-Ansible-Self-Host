@@ -93,21 +93,12 @@ ansible-galaxy collection install -r requirements.yml
    ANSIBLE_PYTHON_INTERPRETER=/usr/bin/python3
    ```
 
-3. **Load environment variables before running Ansible**:
-   ```bash
-   # On Linux/macOS
-   source .env
-   
-   # On Windows PowerShell
-   Get-Content .env | ForEach-Object {
-       $name, $value = $_.Split("=")
-       [Environment]::SetEnvironmentVariable($name, $value)
-   }
-   ```
+3. **That's it!** The helper scripts will load your `.env` automatically when you run them.
+   See [Step 4: Run the Playbook](#step-4-run-the-playbook) for how to run the deployment.
 
-4. **Verify .env is in .gitignore**:
+4. **Verify .env is protected**:
    ```bash
-   # Check if .env is already listed
+   # Check if .env is in .gitignore
    grep '\.env' .gitignore
    
    # You should see:
@@ -184,25 +175,71 @@ ansible all -i inventory/hosts.yml -m ping
 
 ## Step 4: Run the Playbook
 
-### Full Deployment (recommended first run)
+The project includes helper scripts that automatically load your environment variables before running Ansible.
 
-```bash
-ansible-playbook -i inventory/hosts.yml site.yml
+### Using the Helper Scripts (Recommended)
+
+**Windows (PowerShell)**:
+```powershell
+.\run-playbook.ps1
 ```
+
+**Linux/macOS**:
+```bash
+chmod +x run-playbook.sh
+./run-playbook.sh
+```
+
+These scripts will:
+1. Load all variables from your `.env` file
+2. Verify required variables are set
+3. Run the Ansible playbook
 
 This will take 15-30 minutes depending on your server's specs.
 
 ### Deploy Individual Services
 
+You can also run with tags:
+
+**Windows**:
+```powershell
+.\run-playbook.ps1 site.yml --tags base,tailscale
+.\run-playbook.ps1 site.yml --tags matrix
+.\run-playbook.ps1 site.yml --tags pelican
+```
+
+**Linux/macOS**:
 ```bash
-# Just the base system + Tailscale
-ansible-playbook -i inventory/hosts.yml site.yml --tags base,tailscale
+./run-playbook.sh site.yml --tags base,tailscale
+./run-playbook.sh site.yml --tags matrix
+./run-playbook.sh site.yml --tags pelican
+```
 
-# Just Matrix
-ansible-playbook -i inventory/hosts.yml site.yml --tags matrix
+### Manual Approach (if not using the scripts)
 
-# Just Pelican
-ansible-playbook -i inventory/hosts.yml site.yml --tags pelican
+If you prefer to run Ansible directly, you must load environment variables first:
+
+**Windows PowerShell**:
+```powershell
+# Load environment variables
+Get-Content .env | ForEach-Object {
+    if ($_.Trim() -and !$_.StartsWith('#')) {
+        $name, $value = $_.Split('=', 2)
+        [Environment]::SetEnvironmentVariable($name.Trim(), $value.Trim())
+    }
+}
+
+# Run playbook
+ansible-playbook -i inventory/hosts.yml site.yml
+```
+
+**Linux/macOS**:
+```bash
+# Load environment variables
+source .env
+
+# Run playbook
+ansible-playbook -i inventory/hosts.yml site.yml
 ```
 
 ## Step 5: Tailscale Setup

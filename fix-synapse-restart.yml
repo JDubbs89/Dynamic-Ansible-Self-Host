@@ -1,0 +1,140 @@
+# =============================================================================
+# Sequential Service Restart - Troubleshooting Matrix Synapse Startup
+# =============================================================================
+# This playbook restarts services individually with delays between each
+# to give services time to fully initialize and stabilize
+# Run with: ansible-playbook -i inventory.yml -u ubuntu fix-synapse-restart.yml
+# =============================================================================
+
+---
+- name: Sequential Matrix Service Restart
+  hosts: matrix
+  gather_facts: no
+  tasks:
+    - name: Display restart strategy
+      debug:
+        msg: |
+          Restarting Matrix services sequentially with 5-second delays
+          Order: postgres → exim-relay → coturn → synapse → element → static-files → admin → timer
+
+    # Database first - everything depends on it
+    - name: Restart PostgreSQL database service
+      systemd:
+        name: matrix-postgres.service
+        state: restarted
+      register: postgres_restart
+
+    - name: Wait for PostgreSQL to stabilize
+      pause:
+        seconds: 5
+      
+    - name: Check PostgreSQL status
+      command: systemctl status matrix-postgres.service
+      changed_when: no
+      register: postgres_status
+
+    - name: Display PostgreSQL status
+      debug:
+        msg: "{{ postgres_status.stdout_lines[-5:] }}"
+
+    # Email relay support
+    - name: Restart Exim relay
+      systemd:
+        name: matrix-exim-relay.service
+        state: restarted
+      register: exim_restart
+
+    - name: Wait for Exim to stabilize
+      pause:
+        seconds: 2
+
+    # TURN/STUN for voice/video
+    - name: Restart Coturn service
+      systemd:
+        name: matrix-coturn.service
+        state: restarted
+      register: coturn_restart
+
+    - name: Wait for Coturn to stabilize
+      pause:
+        seconds: 3
+
+    # Main homeserver - the problematic one
+    - name: Restart Synapse homeserver (CRITICAL)
+      systemd:
+        name: matrix-synapse.service
+        state: restarted
+      register: synapse_restart
+      ignore_errors: yes
+
+    - name: Display Synapse restart output
+      debug:
+        var: synapse_restart
+
+    - name: Wait for Synapse to stabilize (longer delay for main service)
+      pause:
+        seconds: 8
+
+    - name: Check Synapse status
+      command: systemctl status matrix-synapse.service
+      changed_when: no
+      register: synapse_status
+      ignore_errors: yes
+
+    - name: Display Synapse status
+      debug:
+        msg: "{{ synapse_status.stdout_lines[-10:] }}"
+
+    # Client interface
+    - name: Restart Element Web client
+      systemd:
+        name: matrix-client-element.service
+        state: restarted
+      register: element_restart
+
+    - name: Wait for Element to stabilize
+      pause:
+        seconds: 2
+
+    # Static files/well-known
+    - name: Restart matrix-static-files service
+      systemd:
+        name: matrix-static-files.service
+        state: restarted
+      register: static_restart
+
+    - name: Wait for static files to stabilize
+      pause:
+        seconds: 2
+
+    # Admin panel
+    - name: Restart Synapse admin panel
+      systemd:
+        name: matrix-synapse-admin.service
+        state: restarted
+      register: admin_restart
+
+    - name: Wait for admin panel to stabilize
+      pause:
+        seconds: 2
+
+    # Coturn reload timer
+    - name: Restart Coturn reload timer
+      systemd:
+        name: matrix-coturn-reload.timer
+        state: restarted
+      register: timer_restart
+
+    # Final status check
+    - name: Display all service statuses
+      debug:
+        msg: |
+          Service Restart Summary:
+          - PostgreSQL: {{ 'OK' if postgres_restart.changed else 'NOT RESTARTED' }}
+          - Exim:       {{ 'OK' if exim_restart.changed else 'NOT RESTARTED' }}
+          - Coturn:     {{ 'OK' if coturn_restart.changed else 'NOT RESTARTED' }}
+          - Synapse:    {{ 'OK' if synapse_restart.changed else 'ERROR - Check logs' }}
+          - Element:    {{ 'OK' if element_restart.changed else 'NOT RESTARTED' }}
+          - Static:     {{ 'OK' if static_restart.changed else 'NOT RESTARTED' }}
+          - Admin:      {{ 'OK' if admin_restart.changed else 'NOT RESTARTED' }}
+          - Timer:      {{ 'OK' if timer_restart.changed else 'NOT RESTARTED' }}

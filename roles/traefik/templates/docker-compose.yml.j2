@@ -2,14 +2,14 @@ version: '3.8'
 
 services:
   traefik:
-    image: traefik:v3.0
+    image: traefik:latest
     container_name: traefik
     restart: unless-stopped
     command:
       - "--configFile=/etc/traefik/traefik.yml"
     ports:
-      - "100.94.255.52:80:80"
-      - "100.94.255.52:443:443"
+      - "80:80"
+      - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config:/etc/traefik:ro
@@ -22,7 +22,6 @@ services:
       - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.{{ base_domain }}`)"
       - "traefik.http.routers.traefik-dashboard.entrypoints=web-secure"
       - "traefik.http.routers.traefik-dashboard.tls=true"
-      - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
 
 networks:
